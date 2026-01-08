@@ -1,7 +1,7 @@
 # Software Architecture & Design Document
 
 ## Project Title
-**"Safe & Real-Time Trajectory Generation: A Hybrid Approach using Consistent Diffusion Models and Convex Optimization"**
+**"git commit -m "Add README file": A Hybrid Approach using Consistent Diffusion Models and Convex Optimization"**
 
 **Document Version:** 1.0  
 **Target Conference:** IAC 2026  

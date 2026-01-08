@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
-from typing import Optional, Dict, Any, Tuple, Callable
+from typing import Optional, Dict, Any, Tuple, Callable, TYPE_CHECKING
 from dataclasses import dataclass, field
 import warnings
+from pathlib import Path
 
 from .base_solver import (
     BaseSolver,
@@ -30,6 +31,14 @@ from .base_solver import (
     SolverTimer,
     TimingRecord,
 )
+
+# PyTorch imports (optional - for trained model)
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
 
 
 # =============================================================================
@@ -85,15 +94,16 @@ class DiffusionModelConfig:
 
 
 # =============================================================================
-# DIFFUSION MODEL (Simplified Implementation)
+# DIFFUSION MODEL (Production Implementation with PyTorch Support)
 # =============================================================================
 
 class TemporalDiffusionModel:
     """
     1D Temporal Diffusion Model for Trajectory Generation.
     
-    This is a simplified CPU/NumPy implementation for demonstration.
-    Production version should use PyTorch with GPU acceleration.
+    This implementation supports both:
+        1. Trained PyTorch model (when checkpoint available)
+        2. Fallback NumPy heuristic (for testing without training)
     
     The model learns to denoise trajectories conditioned on:
         - Start position
@@ -105,11 +115,6 @@ class TemporalDiffusionModel:
     
     Reverse Process (Inference):
         p_θ(x_{t-1} | x_t, c) = N(x_{t-1}; μ_θ(x_t, t, c), σ_t² I)
-    
-    Note:
-        This simplified version uses linear interpolation + noise as a
-        stand-in for the learned denoising network. Replace with actual
-        PyTorch model for real experiments.
     """
     
     def __init__(
@@ -136,23 +141,73 @@ class TemporalDiffusionModel:
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = np.cumprod(self.alphas)
         
-        # Placeholder for trained weights
+        # Model state
         self._weights_loaded = False
+        self._pytorch_model = None
+        self._device = None
         self._rng = np.random.default_rng()
+        
+        # Statistics for normalization (will be loaded from checkpoint)
+        self._traj_mean = None
+        self._traj_std = None
     
-    def load_weights(self, checkpoint_path: str) -> None:
+    def load_weights(self, checkpoint_path: str) -> bool:
         """
-        Load trained model weights.
+        Load trained model weights from PyTorch checkpoint.
         
         Args:
-            checkpoint_path: Path to .pt checkpoint file
+            checkpoint_path: Path to .pth checkpoint file
+            
+        Returns:
+            True if successfully loaded, False otherwise
         """
-        # In production: torch.load(checkpoint_path)
-        self._weights_loaded = True
-        warnings.warn(
-            "Using simplified diffusion model. "
-            "Replace with PyTorch implementation for production."
-        )
+        if not TORCH_AVAILABLE:
+            warnings.warn("PyTorch not available. Using fallback heuristic.")
+            self._weights_loaded = False
+            return False
+        
+        checkpoint_file = Path(checkpoint_path)
+        if not checkpoint_file.exists():
+            warnings.warn(f"Checkpoint not found: {checkpoint_path}. Using fallback.")
+            self._weights_loaded = False
+            return False
+        
+        try:
+            # Import the trained model class
+            from ..training.diffusion_model import TrajectoryDiffusionModel, DiffusionConfig
+            
+            # Load checkpoint
+            self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            checkpoint = torch.load(checkpoint_path, map_location=self._device)
+            
+            # Reconstruct config
+            saved_config = checkpoint.get('config', {})
+            model_config = DiffusionConfig(
+                n_waypoints=saved_config.get('n_waypoints', self.n_waypoints),
+                hidden_dim=saved_config.get('hidden_dim', 256),
+                n_layers=saved_config.get('n_layers', 4),
+                n_timesteps=saved_config.get('n_timesteps', 100),
+            )
+            
+            # Create and load model
+            self._pytorch_model = TrajectoryDiffusionModel(model_config)
+            self._pytorch_model.load_state_dict(checkpoint['model_state_dict'])
+            self._pytorch_model.to(self._device)
+            self._pytorch_model.eval()
+            
+            # Update waypoint count
+            self.n_waypoints = model_config.n_waypoints
+            
+            self._weights_loaded = True
+            print(f"✓ Loaded trained diffusion model from {checkpoint_path}")
+            print(f"  Device: {self._device}")
+            
+            return True
+            
+        except Exception as e:
+            warnings.warn(f"Failed to load checkpoint: {e}. Using fallback.")
+            self._weights_loaded = False
+            return False
     
     def encode_obstacles(
         self,
@@ -169,22 +224,38 @@ class TemporalDiffusionModel:
             target_pos: Target position (2,)
         
         Returns:
-            Condition vector of shape (condition_dim,)
+            Condition vector (obstacle_map for PyTorch, flat vector for fallback)
         """
-        # Simplified: flatten and project
-        # Production: Use CNN encoder
+        if self._weights_loaded and self._pytorch_model is not None:
+            # For PyTorch model, return resized obstacle map
+            # The CNN encoder will handle it
+            from scipy.ndimage import zoom
+            
+            # Resize to 64x64 for CNN
+            target_size = 64
+            zoom_factor = target_size / max(obstacle_map.shape)
+            resized = zoom(obstacle_map.astype(np.float32), zoom_factor, order=0)
+            
+            # Pad/crop to exact size
+            result = np.zeros((target_size, target_size), dtype=np.float32)
+            h, w = min(resized.shape[0], target_size), min(resized.shape[1], target_size)
+            result[:h, :w] = resized[:h, :w]
+            
+            return result
         
-        # Downsample obstacle map
+        # Fallback: flatten and project
         h, w = obstacle_map.shape
         downsampled = obstacle_map[::4, ::4].flatten()
         
         # Concatenate with normalized positions
-        norm_start = start_pos / 100.0  # Assume 100m environment
+        norm_start = start_pos / 100.0
         norm_target = target_pos / 100.0
         
         # Create condition vector
         condition = np.zeros(self.config.condition_dim)
-        condition[:len(downsampled)] = downsampled[:self.config.condition_dim - 4]
+        available_space = self.config.condition_dim - 4
+        copy_len = min(len(downsampled), available_space)
+        condition[:copy_len] = downsampled[:copy_len]
         condition[-4:-2] = norm_start
         condition[-2:] = norm_target
         
@@ -200,15 +271,8 @@ class TemporalDiffusionModel:
         """
         Generate trajectory using reverse diffusion process.
         
-        Algorithm (DDPM-style):
-            1. Sample x_T ~ N(0, I)
-            2. For t = T, T-1, ..., 1:
-                   ε_θ = model.predict_noise(x_t, t, condition)
-                   x_{t-1} = denoise_step(x_t, ε_θ, t)
-            3. Return x_0
-        
         Args:
-            condition: Encoded condition vector
+            condition: Encoded condition (obstacle map or flat vector)
             start_pos: Start position for anchoring
             target_pos: Target position for anchoring
             n_steps: Number of diffusion steps
@@ -216,13 +280,60 @@ class TemporalDiffusionModel:
         Returns:
             Generated trajectory of shape (n_waypoints, 2)
         """
-        # Initialize with noise
+        if self._weights_loaded and self._pytorch_model is not None:
+            return self._generate_pytorch(condition, start_pos, target_pos)
+        else:
+            return self._generate_fallback(condition, start_pos, target_pos, n_steps)
+    
+    def _generate_pytorch(
+        self,
+        obstacle_map: np.ndarray,
+        start_pos: np.ndarray,
+        target_pos: np.ndarray
+    ) -> np.ndarray:
+        """Generate trajectory using trained PyTorch model."""
+        with torch.no_grad():
+            # Prepare inputs
+            obs_tensor = torch.from_numpy(obstacle_map).unsqueeze(0).unsqueeze(0).float()
+            start_tensor = torch.from_numpy(start_pos / 100.0).unsqueeze(0).float()
+            target_tensor = torch.from_numpy(target_pos / 100.0).unsqueeze(0).float()
+            
+            # Move to device
+            obs_tensor = obs_tensor.to(self._device)
+            start_tensor = start_tensor.to(self._device)
+            target_tensor = target_tensor.to(self._device)
+            
+            # Generate
+            generated = self._pytorch_model.generate(
+                obstacle_maps=obs_tensor,
+                start_positions=start_tensor,
+                target_positions=target_tensor,
+                n_samples=1
+            )
+            
+            # Convert back to numpy and denormalize
+            trajectory = generated[0].cpu().numpy() * 100.0  # Denormalize
+            
+            # Anchor endpoints exactly
+            trajectory[0] = start_pos
+            trajectory[-1] = target_pos
+            
+            return trajectory
+    
+    def _generate_fallback(
+        self,
+        condition: np.ndarray,
+        start_pos: np.ndarray,
+        target_pos: np.ndarray,
+        n_steps: int
+    ) -> np.ndarray:
+        """Generate trajectory using heuristic fallback (for untrained model)."""
+        # Initialize with noise around linear interpolation
+        linear_traj = np.linspace(start_pos, target_pos, self.n_waypoints)
+        
         x_t = self._rng.normal(
             size=(self.n_waypoints, 2)
         ).astype(np.float32) * self.config.beta_end
-        
-        # Add linear interpolation prior
-        linear_traj = np.linspace(start_pos, target_pos, self.n_waypoints)
         x_t = x_t + linear_traj
         
         # Reverse diffusion (simplified)
@@ -231,10 +342,6 @@ class TemporalDiffusionModel:
             noise_pred = self._predict_noise(x_t, t, condition, linear_traj)
             
             # Denoise step
-            alpha_t = self.alphas_cumprod[min(t, len(self.alphas_cumprod) - 1)]
-            alpha_t_prev = self.alphas_cumprod[max(t - 1, 0)]
-            
-            # Simplified denoising
             x_t = x_t - 0.1 * noise_pred
             
             # Add small noise (except final step)
@@ -255,15 +362,14 @@ class TemporalDiffusionModel:
         condition: np.ndarray,
         prior: np.ndarray
     ) -> np.ndarray:
-        """
-        Predict noise for denoising step.
-        
-        In production, this is the U-Net or Transformer backbone.
-        Here we use a simple heuristic toward the prior.
-        """
-        # Simplified: push toward linear interpolation with some randomness
+        """Predict noise for denoising step (fallback heuristic)."""
         deviation = x_t - prior
         return deviation * 0.5 + self._rng.normal(size=x_t.shape) * 0.1
+    
+    @property
+    def is_trained(self) -> bool:
+        """Check if using trained model or fallback."""
+        return self._weights_loaded and self._pytorch_model is not None
 
 
 # =============================================================================
@@ -451,17 +557,25 @@ class HybridSolver(BaseSolver):
         - CPU: SLSQP refinement (5W)
     
     Example:
-        >>> solver = HybridSolver()
+        >>> solver = HybridSolver(checkpoint_path="checkpoints/diffusion_best.pth")
         >>> result = solver.solve(env)
         >>> assert result.metadata['slsqp_success'], "Safety layer must succeed"
     """
+    
+    # Default checkpoint paths to search
+    DEFAULT_CHECKPOINTS = [
+        "./checkpoints/diffusion_best.pth",
+        "./checkpoints/diffusion_latest.pth",
+        "../checkpoints/diffusion_best.pth",
+    ]
     
     def __init__(
         self,
         config: Optional[HybridSolverConfig] = None,
         diffusion_config: Optional[DiffusionModelConfig] = None,
         n_waypoints: int = 50,
-        checkpoint_path: Optional[str] = None
+        checkpoint_path: Optional[str] = None,
+        auto_load: bool = True
     ):
         """
         Initialize Hybrid Solver.
@@ -471,6 +585,7 @@ class HybridSolver(BaseSolver):
             diffusion_config: Diffusion model configuration
             n_waypoints: Number of waypoints in trajectory
             checkpoint_path: Path to trained diffusion model weights
+            auto_load: If True, automatically search for checkpoint
         """
         super().__init__(
             name="Hybrid Diffusion + SLSQP Solver",
@@ -486,11 +601,31 @@ class HybridSolver(BaseSolver):
             n_waypoints=n_waypoints
         )
         
+        # Try to load trained weights
+        loaded = False
         if checkpoint_path:
-            self.diffusion_model.load_weights(checkpoint_path)
+            loaded = self.diffusion_model.load_weights(checkpoint_path)
+        elif auto_load:
+            # Search for checkpoint
+            for default_path in self.DEFAULT_CHECKPOINTS:
+                if Path(default_path).exists():
+                    loaded = self.diffusion_model.load_weights(default_path)
+                    if loaded:
+                        break
+        
+        if not loaded:
+            warnings.warn(
+                "No trained diffusion model loaded. Using fallback heuristic. "
+                "Run 'python scripts/train_diffusion.py' to train the model."
+            )
         
         # Optimizer initialized per-solve (needs env reference)
         self.optimizer: Optional[TrajectoryOptimizer] = None
+    
+    @property
+    def is_using_trained_model(self) -> bool:
+        """Check if solver is using trained AI model."""
+        return self.diffusion_model.is_trained
     
     def solve(self, env: 'SpaceEnv') -> SolverResult:
         """
@@ -594,7 +729,8 @@ class HybridSolver(BaseSolver):
                 'slsqp_iterations': opt_result.nit if hasattr(opt_result, 'nit') else None,
                 'slsqp_message': opt_result.message if hasattr(opt_result, 'message') else None,
                 'collision_free': collision_idx is None,
-                'warm_start_source': 'diffusion_model'
+                'warm_start_source': 'diffusion_model',
+                'using_trained_model': self.diffusion_model.is_trained
             }
         )
     

@@ -2,7 +2,6 @@
 ## Safe & Real-Time Trajectory Generation: A Hybrid Approach using Consistent Diffusion Models and Convex Optimization
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![IAC 2026](https://img.shields.io/badge/Conference-IAC%202026-green.svg)](https://www.iafastro.org/)
 
 Research implementation for comparing classical (RRT*) vs. hybrid AI (Diffusion + SLSQP) trajectory generation approaches for spacecraft path planning.
@@ -207,13 +206,24 @@ The AI output `τ_diff` is **NEVER** used directly. Only the SLSQP-refined `τ_s
 
 ---
 
+## � Future Work
+
+The following limitations are acknowledged and planned for future versions:
+
+| Limitation | Current State | Planned Update |
+|------------|---------------|----------------|
+| **3D Space** | Currently limited to 2D for proof-of-concept | 3D kinematics and full SE(3) dynamics will be added in v2.0 |
+| **Dynamic Obstacles** | Current obstacles are static | Moving debris prediction and tracking is planned for future iterations |
+
+---
+
 ## 📝 Citation
 
 ```bibtex
 @inproceedings{trajectory2026iac,
   title={Safe \& Real-Time Trajectory Generation: A Hybrid Approach using 
          Consistent Diffusion Models and Convex Optimization},
-  author={GNC Research Team},
+  author={Akbas, H. Can},
   booktitle={International Astronautical Congress (IAC)},
   year={2026}
 }
@@ -221,19 +231,9 @@ The AI output `τ_diff` is **NEVER** used directly. Only the SLSQP-refined `τ_s
 
 ---
 
-## 📄 License
+## 👤 Author
 
-MIT License - See [LICENSE](LICENSE) for details.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+**H. Can Akbas**  
 
 ---
 
