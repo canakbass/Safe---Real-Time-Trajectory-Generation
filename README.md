@@ -3,9 +3,18 @@
 
 ![Status](https://img.shields.io/badge/Status-Active-success)
 ![Platform](https://img.shields.io/badge/Platform-Jetson%20Nano-green)
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
 A Hybrid Logic-Learning Architecture for generating safe, smooth, and kinodynamically feasible trajectories in complex 3D environments. Designed for energy-constrained spaceflight hardware (e.g., NVIDIA Jetson Nano).
+
+> **Why Hybrid?** Pure End-to-End Deep Learning is unreliable for space (Blackbox problem), while pure A* is too slow for 3D replanning on satellites. Our architecture combines the speed of Deep Learning with the safety guarantees of Classical Control (APF), offering the best of both worlds.
+
+---
+
+## 📸 Visualization
+
+![3D Trajectory Demo](results/demo_step3.png)
+*(Red: Raw Neural Net Output | Green: Safe Repaired Trajectory)*
 
 ---
 
@@ -91,8 +100,11 @@ python scripts/demo_inference.py
 | **Memory** | < 2GB | ~400MB |
 
 > **Result:** The Hybrid Logic-Learning architecture achieves a **13x speedup** over classical A* while maintaining a **100% success rate** in complex 3D environments.
+>
+> *Note: The Hybrid model ensures safety through APF repair while maintaining inference speeds suitable for 1Hz-10Hz control loops on embedded hardware.*
 
 ---
 
 ## 📜 Citation (IAC 2026)
 "Safe Real-Time 3D Trajectory Generation for Autonomous Spacecraft Operations using Hybrid Deep Learning on Embedded Systems"
+
