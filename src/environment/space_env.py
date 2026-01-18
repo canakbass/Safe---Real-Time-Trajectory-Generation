@@ -28,9 +28,33 @@ class Obstacle:
     """
     center: np.ndarray  # Shape (3,)
     radius: float
+    # V3: Dynamic properties
+    velocity: np.ndarray = None 
 
     def __post_init__(self):
         self.center = np.asarray(self.center, dtype=np.float32)
+        if self.velocity is None:
+            self.velocity = np.zeros(3, dtype=np.float32)
+        else:
+            self.velocity = np.asarray(self.velocity, dtype=np.float32)
+
+    def update(self, dt, bounds=(0, 1000)):
+        """Updates position based on velocity and handles boundary bouncing."""
+        if np.all(self.velocity == 0):
+            return
+
+        self.center += self.velocity * dt
+        
+        # Simple Bounce Logic
+        for i in range(3):
+            # Hit Lower Bound
+            if self.center[i] - self.radius < bounds[0]:
+                self.center[i] = bounds[0] + self.radius
+                self.velocity[i] *= -1 # Reverse direction
+            # Hit Upper Bound
+            elif self.center[i] + self.radius > bounds[1]:
+                self.center[i] = bounds[1] - self.radius
+                self.velocity[i] *= -1
 
     def contains(self, point: np.ndarray, margin: float = 0.0) -> bool:
         """Check collision with point (x,y,z)."""
@@ -59,6 +83,10 @@ class EnvironmentConfig:
     
     # Random Seed
     seed: Optional[int] = None
+
+    # Version 3: Dynamic Config
+    dynamic_obstacles: bool = False
+    max_velocity: float = 50.0 # m/s (approx 10% of workspace width per sec at max speed)
 
 # =============================================================================
 # 3D SPACE ENVIRONMENT
@@ -110,7 +138,13 @@ class SpaceEnv:
                 high=[self.config.x_range, self.config.y_range, self.config.z_range]
             )
             radius = self._rng.uniform(self.config.min_radius, self.config.max_radius)
-            self.obstacles.append(Obstacle(center, radius))
+            
+            # V3: Initialize with random velocity if dynamic
+            velocity = np.zeros(3, dtype=np.float32)
+            if self.config.dynamic_obstacles:
+                velocity = self._rng.uniform(-self.config.max_velocity, self.config.max_velocity, size=3).astype(np.float32)
+            
+            self.obstacles.append(Obstacle(center, radius, velocity=velocity))
 
     def _generate_endpoints(self):
         """Generate start and goal points ensuring they are free."""
@@ -137,6 +171,14 @@ class SpaceEnv:
             if obs.contains(point, margin):
                 return True
         return False
+
+    def step(self, dt: float):
+        """V3: Advance the simulation by dt seconds."""
+        if not self.config.dynamic_obstacles:
+            return
+            
+        for obs in self.obstacles:
+            obs.update(dt, bounds=(0, self.config.x_range))
 
     def get_downsampled_grid(self) -> np.ndarray:
         """
