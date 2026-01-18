@@ -4,10 +4,11 @@ Environment Module
 Space environment for trajectory planning benchmark.
 """
 
-from .space_env import SpaceEnvironment, EnvironmentConfig, Obstacle
+from .space_env import SpaceEnv, EnvironmentConfig, Obstacle, AStarPlanner
 
 __all__ = [
-    "SpaceEnvironment",
+    "SpaceEnv",
     "EnvironmentConfig", 
     "Obstacle",
+    "AStarPlanner"
 ]
