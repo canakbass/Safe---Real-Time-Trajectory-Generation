@@ -14,7 +14,7 @@ A Hybrid Logic-Learning Architecture for generating safe, smooth, and kinodynami
 ## 📸 Visualization
 
 ![3D Trajectory Demo](results/demo_step3.png)
-*(Red: Raw Neural Net Output | Green: Safe Repaired Trajectory)*
+*(Figure 1: Hybrid Model Inference. The path (Green) successfully avoids obstacles where the raw model output (Red) might be unsafe.)*
 
 ---
 
