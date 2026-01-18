@@ -1,0 +1,6 @@
+Model,Parameters,Val Loss,MLP Success %,Hybrid Success %,Inference Time (ms),Path Length,Smoothness
+A* (Baseline),-,-,-,100.0,3.59,555.0,7.40
+SimpleMLP,673252,0.000252,72.0,94.0,57.00,549.8,2.72
+DeepCNN,1330532,0.000206,70.0,94.0,57.54,544.1,3.37
+UNet,1136324,0.000209,72.0,96.0,55.88,547.9,3.86
+Attention,663140,0.000186,70.0,96.0,56.12,548.8,3.30

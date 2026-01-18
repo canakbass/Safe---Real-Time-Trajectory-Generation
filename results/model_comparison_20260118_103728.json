@@ -1,0 +1,87 @@
+{
+  "timestamp": "20260118_103728",
+  "training_samples": 10000,
+  "test_environments": 50,
+  "baseline": {
+    "name": "A*",
+    "success_rate": 100.0,
+    "avg_time_ms": 3.5862859996268526,
+    "avg_path_length": 555.0168267822265,
+    "avg_smoothness": 7.396408498287201
+  },
+  "models": [
+    {
+      "name": "SimpleMLP",
+      "parameters": 673252,
+      "val_loss": 0.0002524424344301224,
+      "mlp_only": {
+        "success_rate": 72.0,
+        "avg_path_length": 547.2844128078884,
+        "avg_smoothness": 2.6651728649934134,
+        "avg_time_ms": 57.00086200013175
+      },
+      "hybrid": {
+        "success_rate": 94.0,
+        "avg_path_length": 549.8121558656084,
+        "avg_smoothness": 2.724526603488212,
+        "avg_time_ms": 0.9883759994409047
+      }
+    },
+    {
+      "name": "DeepCNN",
+      "parameters": 1330532,
+      "val_loss": 0.0002058972640952561,
+      "mlp_only": {
+        "success_rate": 70.0,
+        "avg_path_length": 542.0774972098214,
+        "avg_smoothness": 8.981295258658273,
+        "avg_time_ms": 57.53597999922931
+      },
+      "hybrid": {
+        "success_rate": 94.0,
+        "avg_path_length": 544.0976620937915,
+        "avg_smoothness": 3.3712356927547047,
+        "avg_time_ms": 0.9984720003558323
+      }
+    },
+    {
+      "name": "UNet",
+      "parameters": 1136324,
+      "val_loss": 0.0002092739669024013,
+      "mlp_only": {
+        "success_rate": 72.0,
+        "avg_path_length": 540.5230212741428,
+        "avg_smoothness": 12.186035553614298,
+        "avg_time_ms": 55.88450199982617
+      },
+      "hybrid": {
+        "success_rate": 96.0,
+        "avg_path_length": 547.9011459350586,
+        "avg_smoothness": 3.8576578895250955,
+        "avg_time_ms": 0.9948480001185089
+      }
+    },
+    {
+      "name": "Attention",
+      "parameters": 663140,
+      "val_loss": 0.00018582496431918116,
+      "mlp_only": {
+        "success_rate": 70.0,
+        "avg_path_length": 540.2794773646764,
+        "avg_smoothness": 7.967649214608329,
+        "avg_time_ms": 56.11715999955777
+      },
+      "hybrid": {
+        "success_rate": 96.0,
+        "avg_path_length": 548.811855951945,
+        "avg_smoothness": 3.3037591439982257,
+        "avg_time_ms": 1.050200000172481
+      }
+    }
+  ],
+  "best_model": {
+    "name": "UNet",
+    "hybrid_success_rate": 96.0,
+    "speedup_vs_astar": 0.06417317630633995
+  }
+}

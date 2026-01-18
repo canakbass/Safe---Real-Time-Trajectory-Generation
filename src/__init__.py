@@ -1,7 +1,7 @@
-# Space Trajectory Benchmark
-# IAC 2026 Research Implementation
-# "Safe & Real-Time Trajectory Generation: A Hybrid Approach using 
-#  Consistent Diffusion Models and Convex Optimization"
+"""
+Hybrid AI Trajectory Planning
+============================
+ML-based trajectory generation with optimization refinement.
+"""
 
-__version__ = "1.0.0"
-__author__ = "GNC Research Team"
+__version__ = "2.0.0"

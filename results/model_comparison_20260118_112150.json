@@ -1,0 +1,101 @@
+{
+  "timestamp": "20260118_112150",
+  "training_samples": 10000,
+  "test_environments": 50,
+  "baseline": {
+    "name": "A*",
+    "success_rate": 100.0,
+    "avg_time_ms": 3.5176019999198616,
+    "avg_path_length": 555.0168267822265,
+    "avg_smoothness": 7.396408498287201
+  },
+  "models": [
+    {
+      "name": "SimpleMLP",
+      "parameters": 673252,
+      "val_loss": 0.00023182256427389802,
+      "mlp_only": {
+        "success_rate": 70.0,
+        "avg_path_length": 534.5179068429129,
+        "avg_smoothness": 2.8164754492895945
+      },
+      "hybrid": {
+        "success_rate": 96.0,
+        "avg_path_length": 544.9493376413981,
+        "avg_smoothness": 2.7475687426825366,
+        "gpu_time_ms": 56.445939999684924,
+        "cpu_time_ms": 56.73015400010627,
+        "best_device": "GPU",
+        "best_time_ms": 56.445939999684924
+      },
+      "speedup_vs_astar": 0.062318069287879634
+    },
+    {
+      "name": "DeepCNN",
+      "parameters": 1330532,
+      "val_loss": 0.00020215317545080325,
+      "mlp_only": {
+        "success_rate": 68.0,
+        "avg_path_length": 535.441624360926,
+        "avg_smoothness": 10.997609306784238
+      },
+      "hybrid": {
+        "success_rate": 94.0,
+        "avg_path_length": 546.1213736026845,
+        "avg_smoothness": 3.624401861048759,
+        "gpu_time_ms": 59.54483200039249,
+        "cpu_time_ms": 64.58672400025534,
+        "best_device": "GPU",
+        "best_time_ms": 59.54483200039249
+      },
+      "speedup_vs_astar": 0.05907484968463217
+    },
+    {
+      "name": "UNet",
+      "parameters": 1136324,
+      "val_loss": 0.00022867819643579423,
+      "mlp_only": {
+        "success_rate": 70.0,
+        "avg_path_length": 542.4866550990513,
+        "avg_smoothness": 13.449498203822545
+      },
+      "hybrid": {
+        "success_rate": 94.0,
+        "avg_path_length": 548.5752407642121,
+        "avg_smoothness": 3.9714854600581715,
+        "gpu_time_ms": 58.24439999923925,
+        "cpu_time_ms": 61.981513999198796,
+        "best_device": "GPU",
+        "best_time_ms": 58.24439999923925
+      },
+      "speedup_vs_astar": 0.06039382326825937
+    },
+    {
+      "name": "Attention",
+      "parameters": 663140,
+      "val_loss": 0.00018634927710081683,
+      "mlp_only": {
+        "success_rate": 68.0,
+        "avg_path_length": 531.5280061609604,
+        "avg_smoothness": 7.931516303735621
+      },
+      "hybrid": {
+        "success_rate": 96.0,
+        "avg_path_length": 542.9468224843343,
+        "avg_smoothness": 3.1506085072954497,
+        "gpu_time_ms": 58.96096800031955,
+        "cpu_time_ms": 60.5638160003582,
+        "best_device": "GPU",
+        "best_time_ms": 58.96096800031955
+      },
+      "speedup_vs_astar": 0.059659841403906344
+    }
+  ],
+  "best_model": {
+    "name": "SimpleMLP",
+    "hybrid_success_rate": 96.0,
+    "best_device": "GPU",
+    "best_time_ms": 56.445939999684924,
+    "speedup_vs_astar": 0.062318069287879634
+  }
+}

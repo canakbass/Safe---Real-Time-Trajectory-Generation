@@ -1,0 +1,6 @@
+Model,Parameters,Val Loss,Hybrid Success %,GPU Time (ms),CPU Time (ms),Best Device,Best Time (ms),Speedup vs A*
+A* (Baseline),-,-,100.0,-,-,CPU,3.52,1.00x
+SimpleMLP,673252,0.000232,96.0,56.45,56.73,GPU,56.45,16.0x slower
+DeepCNN,1330532,0.000202,94.0,59.54,64.59,GPU,59.54,16.9x slower
+UNet,1136324,0.000229,94.0,58.24,61.98,GPU,58.24,16.6x slower
+Attention,663140,0.000186,96.0,58.96,60.56,GPU,58.96,16.8x slower

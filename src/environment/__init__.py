@@ -1,21 +1,13 @@
 """
 Environment Module
 ==================
-Contains the SpaceEnv Gymnasium environment and related data structures.
+Space environment for trajectory planning benchmark.
 """
 
-from .space_env import (
-    SpaceEnv,
-    SpaceEnvConfig,
-    CircularObstacle,
-    KinematicConstraints,
-    create_random_env,
-)
+from .space_env import SpaceEnvironment, EnvironmentConfig, Obstacle
 
 __all__ = [
-    'SpaceEnv',
-    'SpaceEnvConfig',
-    'CircularObstacle',
-    'KinematicConstraints',
-    'create_random_env',
+    "SpaceEnvironment",
+    "EnvironmentConfig", 
+    "Obstacle",
 ]
