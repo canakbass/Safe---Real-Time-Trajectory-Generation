@@ -1,14 +1,14 @@
 
 """
-Version 5: The Vector Revolution Benchmark
-==========================================
+Final Benchmark: Egocentric Hybrid Architecture
+================================================
 Compares:
-1. Classical A* (Baseline)
-2. APF (Competitor: Fast & Light)
-3. Hybrid-Grid (Old V3: Heavy)
-4. Hybrid-Vector (New V5: The Solution)
+1. A* (Optimal Baseline)
+2. APF (Fast Reactive)
+3. RRT* (Sampling-Based)
+4. Hybrid-Vector (Proposed Model)
 
-Focus: Proving V5 beats APF in Memory/Speed while matching A* in quality.
+Focus: Proving the Hybrid model achieves A*-level quality with APF-level speed.
 """
 
 import sys
@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path('.').resolve()))
 
 from src.environment.space_env import SpaceEnv, EnvironmentConfig, AStarPlanner
 from src.planning.apf import PotentialFieldPlanner
-from src.inference.pipeline import InferencePipeline
+from src.planning.rrt_star import RRTStarPlanner
 from src.model.vector_net import VectorTrajectoryGenerator
 
 # Energy Model
@@ -68,26 +68,26 @@ def run_benchmark():
     # 2. APF
     apf = PotentialFieldPlanner(env, max_iter=3000)
     
-    # 3. Hybrid-Grid (V3)
-    hybrid_grid = InferencePipeline(model_path="checkpoints/best_model_3d.pth", device="cpu")
+    # 3. RRT*
+    rrt_star = RRTStarPlanner(env, max_iter=5000, step_size=50.0)
     
-    # 4. Hybrid-Vector (V5)
-    device = torch.device('cpu') # Run on CPU for fair memory profiling vs others
+    # 4. Hybrid-Vector (Proposed Model)
+    device = torch.device('cpu') # Run on CPU for fair memory profiling
     vector_model = VectorTrajectoryGenerator(n_obstacles=20, feature_dim=128, path_len=20).to(device)
     try:
         vector_model.load_state_dict(torch.load("checkpoints/best_model_vector_3d.pth", map_location=device))
         vector_model.eval()
-        print("Loaded V5 Vector Model.")
+        print("Loaded Hybrid-Vector Model.")
     except Exception as e:
-        print(f"Failed to load V5 model: {e}")
+        print(f"Failed to load model: {e}")
         return
 
     # Results
     results = {
-        'A*':      {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []},
-        'APF':     {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []},
-        'Hybrid-G': {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []}, # Grid
-        'Hybrid-V': {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []}  # Vector
+        'A*':        {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []},
+        'APF':       {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []},
+        'RRT*':      {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []},
+        'Hybrid-V':  {'success': 0, 'time': [], 'length': [], 'memory': [], 'energy': []}
     }
     
     n_total = len(seeds)
@@ -128,27 +128,26 @@ def run_benchmark():
              results['APF']['memory'].append(peak / 1024 / 1024)
              results['APF']['energy'].append(t_dur * POWER_CPU_WATTS)
 
-        # --- 3. Hybrid-Grid ---
+        # --- 3. RRT* ---
         tracemalloc.start()
         t0 = time.time()
-        grid = env.get_downsampled_grid()
-        out = hybrid_grid.predict(grid, start, goal, env.obstacles) 
-        path = out['path']
+        path = rrt_star.solve(start, goal)
         t_dur = time.time() - t0
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         
-        results['Hybrid-G']['success'] += 1
-        results['Hybrid-G']['time'].append(t_dur * 1000)
-        results['Hybrid-G']['length'].append(calculate_length(path))
-        results['Hybrid-G']['memory'].append(peak / 1024 / 1024)
-        results['Hybrid-G']['energy'].append(t_dur * POWER_GPU_WATTS)
+        if path is not None:
+            results['RRT*']['success'] += 1
+            results['RRT*']['time'].append(t_dur * 1000)
+            results['RRT*']['length'].append(calculate_length(path))
+            results['RRT*']['memory'].append(peak / 1024 / 1024)
+            results['RRT*']['energy'].append(t_dur * POWER_CPU_WATTS)
 
-        # --- 4. Hybrid-Vector (The Star) ---
+        # --- 4. Hybrid-Vector (Proposed Model) ---
         tracemalloc.start()
         t0 = time.time()
         
-        # 4a. Get Vector State (The fast part)
+        # 4a. Get Vector State
         obs_state = env.get_vector_state(start, n_obs=20, relative=True)
         
         # 4b. Inference
@@ -211,7 +210,7 @@ def plot_results(results):
     mems = [np.mean(results[a]['memory']) if results[a]['memory'] else 0 for a in algos]
     energies = [np.mean(results[a]['energy']) if results[a]['energy'] else 0 for a in algos]
     
-    colors = ['gray', 'red', 'blue', 'green']
+    colors = ['gray', 'red', 'orange', 'green']  # A*, APF, RRT*, Hybrid-V
     
     axes[0].bar(algos, times, color=colors)
     axes[0].set_title('Mean Runtime')
