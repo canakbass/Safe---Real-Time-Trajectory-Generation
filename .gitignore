@@ -36,6 +36,15 @@ env/
 .DS_Store
 Thumbs.db
 
+# Documents (Word, PDF, etc.)
+*.docx
+*.doc
+*.pdf
+*.DOCX
+*.DOC
+*.PDF
+~$*
+
 # Project specific
 *.npz
 *.pth
