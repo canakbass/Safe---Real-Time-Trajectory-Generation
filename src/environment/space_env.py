@@ -38,23 +38,18 @@ class Obstacle:
         else:
             self.velocity = np.asarray(self.velocity, dtype=np.float32)
 
-    def update(self, dt, bounds=(0, 1000)):
-        """Updates position based on velocity and handles boundary bouncing."""
-        if np.all(self.velocity == 0):
+    def update(self, dt, bounds=None):
+        """
+        Updates position based on velocity.
+        V5: Removed boundary checks for realistic space behavior (obstacles drift away).
+        """
+        if self.velocity is None or np.all(self.velocity == 0):
             return
 
         self.center += self.velocity * dt
         
-        # Simple Bounce Logic
-        for i in range(3):
-            # Hit Lower Bound
-            if self.center[i] - self.radius < bounds[0]:
-                self.center[i] = bounds[0] + self.radius
-                self.velocity[i] *= -1 # Reverse direction
-            # Hit Upper Bound
-            elif self.center[i] + self.radius > bounds[1]:
-                self.center[i] = bounds[1] - self.radius
-                self.velocity[i] *= -1
+        # No bounce logic anymore.
+        # Obstacles will drift out of view, mimicking real space debris.
 
     def contains(self, point: np.ndarray, margin: float = 0.0) -> bool:
         """Check collision with point (x,y,z)."""
@@ -217,6 +212,52 @@ class SpaceEnv:
             occupancy[mask] = 1.0
             
         return occupancy.reshape(D, D, D)
+
+    def get_vector_state(self, agent_pos: np.ndarray, n_obs: int = 20, relative: bool = True) -> np.ndarray:
+        """
+        V5: Get vector representation of the environment.
+        Returns: (n_obs, 4) tensor where 4 = (dx, dy, dz, radius).
+        
+        Args:
+            agent_pos: (3,) numpy array of agent position (e.g., self.start).
+            n_obs: Max number of nearest obstacles to return.
+            relative: If True, returns egocentric coords (obs - agent).
+        """
+        if not self.obstacles:
+             return np.zeros((n_obs, 4), dtype=np.float32)
+
+        # 1. Calculate distances to all obstacles
+        # Pre-allocate for speed
+        obs_array = np.zeros((len(self.obstacles), 4), dtype=np.float32)
+        
+        for i, obs in enumerate(self.obstacles):
+            obs_array[i, :3] = obs.center
+            obs_array[i, 3] = obs.radius
+            
+        dists = np.linalg.norm(obs_array[:, :3] - agent_pos, axis=1)
+        
+        # 2. Get Nearest Indices
+        # If we have fewer obstacles than n_obs, take all
+        k = min(n_obs, len(self.obstacles))
+        nearest_indices = np.argsort(dists)[:k]
+        
+        # 3. Construct Output
+        # output shape: (n_obs, 4) padded with zeros if needed
+        vector_state = np.zeros((n_obs, 4), dtype=np.float32)
+        
+        selected_obs = obs_array[nearest_indices]
+        
+        if relative:
+            # Shift coordinate frame to Agent Centric
+            vector_state[:k, :3] = selected_obs[:, :3] - agent_pos
+            vector_state[:k, 3] = selected_obs[:, 3]
+            # Normalization could happen here, or in model. 
+            # For PointNet, raw relative meters is usually fine if inputs are roughly same scale [0-1000].
+            # But let's keep raw relative meters for clarity.
+        else:
+            vector_state[:k] = selected_obs
+            
+        return vector_state
 
 # =============================================================================
 # 3D A* SOLVER

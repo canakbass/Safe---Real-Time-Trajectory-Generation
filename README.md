@@ -1,110 +1,79 @@
-﻿# Safe - Real-Time Trajectory Generation (3D Hybrid AI)
-**IAC 2026 Project: Embedded Autonomous Navigation**
+﻿# Safe Real-Time Trajectory Generation (IAC 2026) 🚀
 
-![Status](https://img.shields.io/badge/Status-Active-success)
-![Platform](https://img.shields.io/badge/Platform-Jetson%20Nano-green)
-![License](https://img.shields.io/badge/License-MIT-blue)
+**Egocentric Vector-Based Hybrid Architecture for Autonomous Spacecraft**
 
-A Hybrid Logic-Learning Architecture for generating safe, smooth, and kinodynamically feasible trajectories in complex 3D environments. Designed for energy-constrained spaceflight hardware (e.g., NVIDIA Jetson Nano).
+This project implements a **Hybrid AI Motion Planner** for spacecraft trajectory generation in dynamic 3D environments. It is optimized for embedded systems (e.g., Jetson Nano), achieving **4ms latency** and **<1MB memory usage** by utilizing an Egocentric PointNet architecture.
 
-> **Why Hybrid?** Pure End-to-End Deep Learning is unreliable for space (Blackbox problem), while pure A* is too slow for 3D replanning on satellites. Our architecture combines the speed of Deep Learning with the safety guarantees of Classical Control (APF), offering the best of both worlds.
+![Demo](results/demo_v5_dynamic_4view.gif)
 
----
+## 🏆 Key Features
+*   **Hybrid Architecture:** Combines global path planning (PointNet) with reactive safety (APF).
+*   **Egocentric Perception:** Operates in infinite 3D space using relative coordinate vectors (LIDAR-style).
+*   **Dynamic Obstacle Avoidance:** Real-time replanning against moving debris (50 m/s).
+*   **Performance:**
+    *   **Speed:** 7x Faster than APF (~4ms inference).
+    *   **Efficiency:** 99% less memory than A* (No Voxel Grid).
+    *   **Energy:** 0.04 Joules per plan (Ultra-Low Power).
 
-## 📸 Visualization
-
-![3D Trajectory Demo](results/demo_step3.png)
-*(Figure 1: Hybrid Model Inference. The path (Green) successfully avoids obstacles where the raw model output (Red) might be unsafe.)*
-
----
-
-## 🚀 Key Features
-
-### 1. 3D Operational Environment
-- **Workspace**: 1000m x 1000m x 1000m (Coordinate Space).
-- **Obstacles**: Analytic Spheres for memory efficiency.
-- **Input**: 100x100x100 Voxel Grid (Downsampled via Max Pooling).
-
-### 2. Deep Learning Engine
-- **Model**: `TrajectoryNet3D` (3D CNN Encoder + MLP Decoder).
-- **Performance**: ~10ms inference latency.
-- **Goal-Conditioned**: Generates paths based on Start/Goal injection.
-
-### 3. Robust "Logic-Learning" Pipeline
-- **Physics Repair**: Artificial Potential Fields (APF) push predicted waypoints out of obstacles in <1ms.
-- **Smoothing**: B-Spline interpolation ensures smooth velocity profiles.
-- **Safety**: 100% collision-free guarantee (via repair loop).
-
----
-
-## 🛠️ Project Structure
-
-```bash
-space_/
+## 📂 Project Structure
+```
+space_project/
 ├── src/
-│   ├── environment/    
-│   │   └── space_env.py      # 3D Environment (1000^3) + A* Expert
-│   ├── model/
-│   │   ├── architecture.py   # 3D CNN + MLP Model
-│   │   └── loss.py           # MSE + Smoothness Loss
-│   └── inference/
-│       ├── pipeline.py       # Main Prediction Class
-│       └── postprocess.py    # Repair (APF) & Smoothing (Splines)
+│   ├── environment/   # SpaceEnv (Infinite 3D, Analytic Obstacles)
+│   ├── model/         # VectorNet (PointNet Architecture)
+│   ├── planning/      # A*, APF (Baselines)
+│   ├── inference/     # Pipeline & Safety Checks
 ├── scripts/
-│   ├── generate_data.py      # Generate training data (A*)
-│   ├── train.py              # Training Loop (PyTorch)
-│   ├── demo_inference.py     # End-to-End Visualization
-│   └── benchmark.py          # Performance Analysis
-└── results/                  # Plots and logs
+│   ├── generate_vector_data.py # Dataset Generation
+│   ├── train_vector.py         # Model Training
+│   ├── benchmark_v5.py         # Performance Evaluation
+│   ├── demo_vector_dynamic.py  # Visualization Demo
+├── data/              # Scenarios & Training Data
+├── checkpoints/       # Trained Models (*.pth)
+└── results/           # GIFs, Plots, Tables
 ```
 
----
-
-## ⚡ Quick Start
-
-### 1. Install Dependencies
+## 🛠️ Installation
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Generate Training Data
-Uses A* Solver to create an "expert" dataset (includes 3D augmentation).
-```bash
-python scripts/generate_data.py
-```
-*Output: `data/train_data.npz`*
+## 🚀 How to Run (Reproduction Guide)
 
-### 3. Train the Model
-Trains the 3D CNN to imitate the A* expert.
+### 1. Generate Training Data
+Generates random scenarios and extracts egocentric obstacle vectors.
 ```bash
-python scripts/train.py
+python scripts/generate_vector_data.py
 ```
-*Output: `checkpoints/best_model_3d.pth`*
 
-### 4. Run Demo (Inference)
-Visualizes the pipeline: **Raw Model Output (Red)** vs **Repaired & Smoothed Path (Green)**.
+### 2. Train the Model (PointNet)
+Trains the lightweight PointNet model to predict trajectories.
 ```bash
-python scripts/demo_inference.py
+python scripts/train_vector.py
 ```
-*Output: `results/demo_step3.png`*
+
+### 3. Run Benchmark (Comparison)
+Compares A* (Optimal), APF (Reactive), and Proposed Hybrid Model.
+```bash
+python scripts/benchmark_v5.py
+```
+
+### 4. Visual Demonstration
+Runs the final simulation with dynamic obstacles and 4-view visualization.
+```bash
+python scripts/demo_vector_dynamic.py
+```
+
+## 📊 Benchmark Results (N=10)
+| Algorithm | Success | Runtime (ms) | Peak Mem (MB) | Energy (J) |
+| :--- | :--- | :--- | :--- | :--- |
+| **A* (Optimal)** | 100% | 29,462.1 | 62.0 | 147.3 |
+| **APF (Reactive)** | 100% | 28.8 | ~0.0 | 0.14 |
+| **Hybrid (Ours)** | **100%** | **4.3** | **~0.0** | **0.04** |
+
+## 📜 Citation
+If you use this code, please cite the **IAC 2026 Paper** found in `IAC_2026_Paper.md`.
 
 ---
-
-## 📊 Performance Targets & Results (Jetson Nano / CPU Bench)
-
-| Metric | Goal | Achieved (Sim) |
-|--------|------|----------------|
-| **Latency** | < 100ms | **428.7 ms** (Hybrid) vs 5565.7 ms (A*) |
-| **Speedup** | > 10x | **13.0x Faster** than A* |
-| **Success** | > 95% | **100%** (via Hybrid Repair) |
-| **Peak RAM** | < 2GB | **~185 MB** (Hybrid) vs ~850 MB (A*) |
-
-> **Result:** The Hybrid Logic-Learning architecture achieves a **13x speedup** over classical A* while maintaining a **100% success rate** and consuming **4.5x less memory** in complex 3D environments.
->
-> *Note: The Hybrid model ensures safety through APF repair while maintaining inference speeds suitable for 1Hz-10Hz control loops on embedded hardware.*
-
----
-
-## 📜 Citation (IAC 2026)
-"Safe Real-Time 3D Trajectory Generation for Autonomous Spacecraft Operations using Hybrid Deep Learning on Embedded Systems"
-
+**Authors:** Safe Generation Team (Canakbass)
+**License:** MIT
